@@ -77,3 +77,104 @@ pub struct OcrResponse {
     #[serde(default)]
     pub confidence: Option<f32>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::RgbaImage;
+
+    fn create_test_image() -> DynamicImage {
+        let img = RgbaImage::new(10, 10);
+        DynamicImage::ImageRgba8(img)
+    }
+
+    #[test]
+    fn test_ocr_request_new() {
+        let img = create_test_image();
+        let request = OcrRequest::new(img);
+
+        assert!(request.system_prompt.is_none());
+        assert!(request.hints.is_empty());
+        assert!(request.language.is_none());
+    }
+
+    #[test]
+    fn test_ocr_request_builder_pattern() {
+        let img = create_test_image();
+        let request = OcrRequest::new(img)
+            .with_system_prompt("Extract text".to_string())
+            .with_hints(vec!["Hint 1".to_string(), "Hint 2".to_string()])
+            .with_language("en".to_string());
+
+        assert_eq!(request.system_prompt, Some("Extract text".to_string()));
+        assert_eq!(request.hints.len(), 2);
+        assert_eq!(request.language, Some("en".to_string()));
+    }
+
+    #[test]
+    fn test_ocr_result_new() {
+        let result = OcrResult::new("Sample text".to_string());
+
+        assert_eq!(result.text, "Sample text");
+        assert!(result.confidence.is_none());
+        assert_eq!(result.processing_time_ms, 0);
+        assert!(result.metadata.is_null());
+    }
+
+    #[test]
+    fn test_ocr_result_with_confidence() {
+        let result = OcrResult {
+            text: "Sample text".to_string(),
+            confidence: Some(0.95),
+            processing_time_ms: 1000,
+            metadata: serde_json::json!({"key": "value"}),
+        };
+
+        assert_eq!(result.confidence, Some(0.95));
+        assert_eq!(result.processing_time_ms, 1000);
+        assert!(!result.metadata.is_null());
+    }
+
+    #[test]
+    fn test_ocr_result_serialization() {
+        let result = OcrResult::new("Test".to_string());
+        let json = serde_json::to_string(&result).unwrap();
+
+        assert!(json.contains("\"text\":\"Test\""));
+        assert!(json.contains("\"processing_time_ms\":0"));
+    }
+
+    #[test]
+    fn test_ocr_result_deserialization() {
+        let json = r#"{
+            "text": "Deserialized text",
+            "confidence": 0.85,
+            "processing_time_ms": 500,
+            "metadata": null
+        }"#;
+
+        let result: OcrResult = serde_json::from_str(json).unwrap();
+
+        assert_eq!(result.text, "Deserialized text");
+        assert_eq!(result.confidence, Some(0.85));
+        assert_eq!(result.processing_time_ms, 500);
+    }
+
+    #[test]
+    fn test_ocr_response_deserialization() {
+        let json = r#"{"text": "Response text", "confidence": 0.9}"#;
+        let response: OcrResponse = serde_json::from_str(json).unwrap();
+
+        assert_eq!(response.text, "Response text");
+        assert_eq!(response.confidence, Some(0.9));
+    }
+
+    #[test]
+    fn test_ocr_response_without_confidence() {
+        let json = r#"{"text": "Response without confidence"}"#;
+        let response: OcrResponse = serde_json::from_str(json).unwrap();
+
+        assert_eq!(response.text, "Response without confidence");
+        assert!(response.confidence.is_none());
+    }
+}

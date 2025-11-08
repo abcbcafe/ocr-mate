@@ -1,0 +1,6 @@
+api_key = "test_hf_token_12345"
+endpoint = "https://api-inference.huggingface.co/models/deepseek-ai/Deepseek-Ocr"
+system_prompt = "Extract all text from this image accurately. Preserve formatting."
+language = "en"
+max_retries = 3
+timeout_secs = 30

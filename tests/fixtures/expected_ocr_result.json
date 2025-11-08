@@ -1,0 +1,10 @@
+{
+  "text": "This is a sample OCR result.\nIt contains multiple lines.\nWith proper formatting.",
+  "confidence": 0.95,
+  "processing_time_ms": 1250,
+  "metadata": {
+    "provider": "deepseek-ocr",
+    "model": "deepseek-ai/Deepseek-Ocr",
+    "page_number": 1
+  }
+}
