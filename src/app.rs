@@ -150,36 +150,42 @@ impl eframe::App for OcrMateApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Split panel: document viewer on left, editor on right
             let available_width = ui.available_width();
+            let available_height = ui.available_height();
             let split_ratio = 0.5;
 
-            ui.horizontal(|ui| {
-                // Left panel: Document viewer
-                ui.allocate_ui(
-                    egui::vec2(available_width * split_ratio, ui.available_height()),
-                    |ui| {
-                        egui::Frame::none()
-                            .fill(ui.style().visuals.extreme_bg_color)
-                            .show(ui, |ui| {
-                                self.document_viewer.ui(ui, &self.document, self.current_page);
-                            });
-                    },
-                );
+            // Use horizontal top layout that expands to fill available space
+            ui.allocate_ui_with_layout(
+                egui::vec2(available_width, available_height),
+                egui::Layout::left_to_right(egui::Align::Min),
+                |ui| {
+                    // Left panel: Document viewer
+                    ui.allocate_ui(
+                        egui::vec2(available_width * split_ratio, available_height),
+                        |ui| {
+                            egui::Frame::none()
+                                .fill(ui.style().visuals.extreme_bg_color)
+                                .show(ui, |ui| {
+                                    self.document_viewer.ui(ui, &self.document, self.current_page);
+                                });
+                        },
+                    );
 
-                // Separator
-                ui.separator();
+                    // Separator
+                    ui.separator();
 
-                // Right panel: Editor
-                ui.allocate_ui(
-                    egui::vec2(available_width * split_ratio - 20.0, ui.available_height()),
-                    |ui| {
-                        if let Some(text) = self.ocr_results.get_mut(self.current_page) {
-                            self.editor_panel.ui(ui, text);
-                        } else {
-                            self.editor_panel.ui(ui, &mut String::new());
-                        }
-                    },
-                );
-            });
+                    // Right panel: Editor
+                    ui.allocate_ui(
+                        egui::vec2(available_width * split_ratio - 20.0, available_height),
+                        |ui| {
+                            if let Some(text) = self.ocr_results.get_mut(self.current_page) {
+                                self.editor_panel.ui(ui, text);
+                            } else {
+                                self.editor_panel.ui(ui, &mut String::new());
+                            }
+                        },
+                    );
+                },
+            );
         });
 
         // Status bar
