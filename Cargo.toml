@@ -1,0 +1,46 @@
+[package]
+name = "ocr-mate"
+version = "0.1.0"
+edition = "2021"
+authors = ["OCR-Mate Contributors"]
+description = "Intelligent document OCR tool with split-view editing"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# UI Framework
+egui = "0.29"
+eframe = { version = "0.29", default-features = true }
+egui_extras = { version = "0.29", features = ["image"] }
+
+# Document Processing
+pdfium-render = "0.8"
+image = { version = "0.25", features = ["png", "jpeg", "tiff", "webp"] }
+
+# Async & HTTP
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+
+# File Dialogs
+rfd = "0.15"
+
+# Utilities
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Configuration
+directories = "5.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
