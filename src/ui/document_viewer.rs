@@ -15,9 +15,6 @@ pub struct DocumentViewer {
     /// Zoom mode
     zoom_mode: ZoomMode,
 
-    /// Pan offset
-    offset: Vec2,
-
     /// Cached texture for current page
     current_texture: Option<TextureHandle>,
 
@@ -33,7 +30,6 @@ impl DocumentViewer {
         Self {
             zoom: 1.0,
             zoom_mode: ZoomMode::FitHeight,
-            offset: Vec2::ZERO,
             current_texture: None,
             last_page_index: None,
             ctx: egui::Context::default(),
@@ -58,37 +54,68 @@ impl DocumentViewer {
 
             // Display the texture
             if let Some(texture) = &self.current_texture {
-                // Calculate zoom based on mode
+                let texture_size = texture.size_vec2();
+
+                // Calculate zoom based on mode with division-by-zero protection
                 let actual_zoom = match self.zoom_mode {
                     ZoomMode::FitHeight => {
-                        // Calculate zoom to fit full height
-                        let texture_height = texture.size_vec2().y;
-                        let available_height = available_size.y - 60.0; // Reserve space for zoom controls
-                        available_height / texture_height
+                        if texture_size.y > 0.0 {
+                            available_size.y / texture_size.y
+                        } else {
+                            1.0
+                        }
                     }
                     ZoomMode::FitWidth => {
-                        // Calculate zoom to fit width
-                        let texture_width = texture.size_vec2().x;
-                        available_size.x / texture_width
+                        if texture_size.x > 0.0 {
+                            available_size.x / texture_size.x
+                        } else {
+                            1.0
+                        }
                     }
                     ZoomMode::Manual => self.zoom,
                 };
 
-                let size = texture.size_vec2() * actual_zoom;
+                let size = texture_size * actual_zoom;
 
-                // Use scroll area only for horizontal scrolling if needed
-                egui::ScrollArea::horizontal()
+                // Configure scroll area based on zoom mode
+                let (scroll_horizontal, scroll_vertical) = match self.zoom_mode {
+                    ZoomMode::FitHeight => (true, false),   // Only horizontal scroll
+                    ZoomMode::FitWidth => (false, true),    // Only vertical scroll
+                    ZoomMode::Manual => (true, true),       // Both directions
+                };
+
+                egui::ScrollArea::new([scroll_horizontal, scroll_vertical])
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        // Center the image vertically
-                        let vertical_padding = (available_size.y - size.y).max(0.0) / 2.0;
-                        ui.add_space(vertical_padding);
+                        // Center vertically when in FitHeight mode and horizontally when in FitWidth mode
+                        match self.zoom_mode {
+                            ZoomMode::FitHeight => {
+                                // Center the image vertically if it's smaller than viewport
+                                let vertical_padding = (available_size.y - size.y).max(0.0) / 2.0;
+                                ui.add_space(vertical_padding);
 
-                        // Center horizontally
-                        ui.vertical_centered(|ui| {
-                            let image = egui::Image::new(texture).fit_to_exact_size(size);
-                            ui.add(image);
-                        });
+                                // Center horizontally
+                                ui.vertical_centered(|ui| {
+                                    ui.add(egui::Image::new(texture).fit_to_exact_size(size));
+                                });
+                            }
+                            ZoomMode::FitWidth => {
+                                // Center horizontally if it's smaller than viewport
+                                ui.horizontal_centered(|ui| {
+                                    ui.vertical(|ui| {
+                                        let horizontal_padding = (available_size.x - size.x).max(0.0) / 2.0;
+                                        ui.add_space(horizontal_padding);
+                                        ui.add(egui::Image::new(texture).fit_to_exact_size(size));
+                                    });
+                                });
+                            }
+                            ZoomMode::Manual => {
+                                // No automatic centering in manual mode - scroll areas handle it
+                                ui.vertical_centered(|ui| {
+                                    ui.add(egui::Image::new(texture).fit_to_exact_size(size));
+                                });
+                            }
+                        }
                     });
 
                 // Store the actual zoom for display
@@ -128,6 +155,7 @@ impl DocumentViewer {
                             self.zoom_mode = ZoomMode::Manual;
                             self.zoom = (self.zoom * 1.25).min(5.0);
                         }
+                        ui.separator();
                         if ui.button("Fit Height").clicked() {
                             self.zoom_mode = ZoomMode::FitHeight;
                         }
