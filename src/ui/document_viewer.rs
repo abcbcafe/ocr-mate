@@ -1,9 +1,19 @@
 use crate::document::Document;
 use egui::{ColorImage, TextureHandle, Vec2};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ZoomMode {
+    Manual,
+    FitHeight,
+    FitWidth,
+}
+
 pub struct DocumentViewer {
     /// Zoom level (1.0 = 100%)
     zoom: f32,
+
+    /// Zoom mode
+    zoom_mode: ZoomMode,
 
     /// Pan offset
     offset: Vec2,
@@ -22,6 +32,7 @@ impl DocumentViewer {
     pub fn new() -> Self {
         Self {
             zoom: 1.0,
+            zoom_mode: ZoomMode::FitHeight,
             offset: Vec2::ZERO,
             current_texture: None,
             last_page_index: None,
@@ -39,37 +50,65 @@ impl DocumentViewer {
 
         let available_size = ui.available_size();
 
-        egui::ScrollArea::both()
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                if let Some(doc) = document {
-                    // Check if we need to render a new page
-                    if self.last_page_index != Some(current_page) {
-                        self.render_page(ui, doc, current_page);
-                    }
+        if let Some(doc) = document {
+            // Check if we need to render a new page
+            if self.last_page_index != Some(current_page) {
+                self.render_page(ui, doc, current_page);
+            }
 
-                    // Display the texture
-                    if let Some(texture) = &self.current_texture {
-                        let size = texture.size_vec2() * self.zoom;
-                        let image = egui::Image::new(texture).fit_to_exact_size(size);
-                        ui.add(image);
-                    } else {
-                        ui.centered_and_justified(|ui| {
-                            ui.spinner();
-                            ui.label("Rendering page...");
-                        });
+            // Display the texture
+            if let Some(texture) = &self.current_texture {
+                // Calculate zoom based on mode
+                let actual_zoom = match self.zoom_mode {
+                    ZoomMode::FitHeight => {
+                        // Calculate zoom to fit full height
+                        let texture_height = texture.size_vec2().y;
+                        let available_height = available_size.y - 60.0; // Reserve space for zoom controls
+                        available_height / texture_height
                     }
-                } else {
-                    // No document loaded - show placeholder
-                    ui.centered_and_justified(|ui| {
+                    ZoomMode::FitWidth => {
+                        // Calculate zoom to fit width
+                        let texture_width = texture.size_vec2().x;
+                        available_size.x / texture_width
+                    }
+                    ZoomMode::Manual => self.zoom,
+                };
+
+                let size = texture.size_vec2() * actual_zoom;
+
+                // Use scroll area only for horizontal scrolling if needed
+                egui::ScrollArea::horizontal()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        // Center the image vertically
+                        let vertical_padding = (available_size.y - size.y).max(0.0) / 2.0;
+                        ui.add_space(vertical_padding);
+
+                        // Center horizontally
                         ui.vertical_centered(|ui| {
-                            ui.heading("No document loaded");
-                            ui.add_space(10.0);
-                            ui.label("Click 'Open Document' to get started");
+                            let image = egui::Image::new(texture).fit_to_exact_size(size);
+                            ui.add(image);
                         });
                     });
-                }
+
+                // Store the actual zoom for display
+                self.zoom = actual_zoom;
+            } else {
+                ui.centered_and_justified(|ui| {
+                    ui.spinner();
+                    ui.label("Rendering page...");
+                });
+            }
+        } else {
+            // No document loaded - show placeholder
+            ui.centered_and_justified(|ui| {
+                ui.vertical_centered(|ui| {
+                    ui.heading("No document loaded");
+                    ui.add_space(10.0);
+                    ui.label("Click 'Open Document' to get started");
+                });
             });
+        }
 
         // Zoom controls overlay
         if document.is_some() {
@@ -81,13 +120,22 @@ impl DocumentViewer {
                 .show(ui.ctx(), |ui| {
                     ui.horizontal(|ui| {
                         if ui.button("−").clicked() {
+                            self.zoom_mode = ZoomMode::Manual;
                             self.zoom = (self.zoom * 0.8).max(0.1);
                         }
                         ui.label(format!("{:.0}%", self.zoom * 100.0));
                         if ui.button("+").clicked() {
+                            self.zoom_mode = ZoomMode::Manual;
                             self.zoom = (self.zoom * 1.25).min(5.0);
                         }
-                        if ui.button("Fit").clicked() {
+                        if ui.button("Fit Height").clicked() {
+                            self.zoom_mode = ZoomMode::FitHeight;
+                        }
+                        if ui.button("Fit Width").clicked() {
+                            self.zoom_mode = ZoomMode::FitWidth;
+                        }
+                        if ui.button("100%").clicked() {
+                            self.zoom_mode = ZoomMode::Manual;
                             self.zoom = 1.0;
                         }
                     });
