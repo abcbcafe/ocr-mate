@@ -37,17 +37,27 @@ An intelligent document OCR tool with split-view editing, powered by DeepSeek-OC
 
 #### PDFium Library
 
-OCR-Mate requires the PDFium library for PDF rendering. Install it based on your platform:
+OCR-Mate requires the PDFium library for PDF rendering. We provide an automated setup script:
 
-**Linux (Ubuntu/Debian)**:
+**Quick Setup (Linux/macOS)**:
 ```bash
-# PDFium will be automatically downloaded or you can install it system-wide
-# No additional action required for most cases
+# Run the setup script to download PDFium
+./setup-pdfium.sh
 ```
 
-**macOS**:
+This will download the appropriate PDFium library for your platform and place it in the project directory.
+
+**Manual Installation**:
+If you prefer to install PDFium manually, download the appropriate binary from [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) and place it in the project root:
+- Linux: `libpdfium.so`
+- macOS: `libpdfium.dylib`
+- Windows: `pdfium.dll`
+
+**Verify Installation**:
+After running the setup script, you should see the PDFium library in your project directory:
 ```bash
-# PDFium will be automatically downloaded
+ls -lh libpdfium.so  # Linux
+ls -lh libpdfium.dylib  # macOS
 # Ensure you have Xcode Command Line Tools installed
 xcode-select --install
 ```

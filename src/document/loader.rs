@@ -42,11 +42,13 @@ impl Document {
     fn load_pdf(path: PathBuf) -> Result<Self> {
         // Initialize pdfium and leak it to get 'static lifetime
         // This is necessary because PdfDocument borrows from Pdfium
-        let pdfium = Box::leak(Box::new(Pdfium::new(
-            Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
-                .or_else(|_| Pdfium::bind_to_system_library())
-                .context("Failed to load PDFium library")?,
-        )));
+        let pdfium = Box::leak(Box::new(
+            Pdfium::new(
+                Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+                    .or_else(|_| Pdfium::bind_to_system_library())
+                    .context("Failed to load PDFium library. Please install libpdfium or download from https://github.com/bblanchon/pdfium-binaries/releases")?,
+            )
+        ));
 
         // Load PDF document
         let pdf = pdfium
