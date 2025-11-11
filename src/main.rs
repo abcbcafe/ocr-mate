@@ -7,7 +7,7 @@ mod utils;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> iced::Result {
     // Initialize logging
     tracing_subscriber::registry()
         .with(
@@ -19,22 +19,13 @@ fn main() -> Result<(), eframe::Error> {
 
     tracing::info!("Starting OCR-Mate...");
 
-    // Configure native options
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1400.0, 900.0])
-            .with_min_inner_size([800.0, 600.0])
-            .with_icon(
-                eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon.png")[..])
-                    .unwrap_or_default(),
-            ),
-        ..Default::default()
-    };
-
-    // Run the app
-    eframe::run_native(
-        "OCR-Mate",
-        options,
-        Box::new(|cc| Ok(Box::new(app::OcrMateApp::new(cc)))),
-    )
+    // Run the app with settings
+    iced::application("OCR-Mate - Intelligent Document OCR", app::OcrMateApp::update, app::OcrMateApp::view)
+        .window(iced::window::Settings {
+            size: iced::Size::new(1400.0, 900.0),
+            min_size: Some(iced::Size::new(800.0, 600.0)),
+            ..Default::default()
+        })
+        .theme(app::OcrMateApp::theme)
+        .run_with(app::OcrMateApp::new)
 }
