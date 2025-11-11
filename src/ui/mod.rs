@@ -1,8 +1,2 @@
-mod document_viewer;
-mod editor_panel;
-mod split_view;
-mod toolbar;
-
-pub use document_viewer::DocumentViewer;
-pub use editor_panel::EditorPanel;
-pub use toolbar::Toolbar;
+// UI modules migrated to iced in app.rs
+// This module is kept for backwards compatibility but exports are no longer used

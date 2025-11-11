@@ -1,18 +1,15 @@
-use egui::Context;
-
-/// Page renderer for converting document pages to egui textures
-pub struct PageRenderer {
-    /// egui context
-    ctx: Context,
-}
+/// Page renderer for converting document pages to images
+/// (Simplified for iced - no texture caching needed)
+pub struct PageRenderer;
 
 impl PageRenderer {
-    pub fn new(ctx: Context) -> Self {
-        Self { ctx }
+    pub fn new() -> Self {
+        Self
     }
+}
 
-    /// Get the egui context
-    pub fn ctx(&self) -> &Context {
-        &self.ctx
+impl Default for PageRenderer {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -8,9 +8,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # UI Framework
-egui = "0.29"
-eframe = { version = "0.29", default-features = true }
-egui_extras = { version = "0.29", features = ["image"] }
+iced = { version = "0.13", features = ["image", "tokio", "advanced"] }
 
 # Document Processing
 pdfium-render = "0.8"
