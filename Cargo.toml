@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # UI Framework
-iced = { version = "0.13", features = ["image", "tokio", "advanced"] }
+iced = { version = "0.13.1", features = ["image", "tokio", "advanced"] }
 
 # Document Processing
 pdfium-render = "0.8"
