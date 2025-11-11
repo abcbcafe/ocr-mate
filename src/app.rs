@@ -574,8 +574,7 @@ impl OcrMateApp {
         .padding(5);
 
         let editor = text_editor(&self.editor_content)
-            .on_action(Message::EditorAction)
-            .height(Length::Fill);
+            .on_action(Message::EditorAction);
 
         let text_content = self.editor_content.text();
         let stats = row![
@@ -590,7 +589,7 @@ impl OcrMateApp {
 
         column![
             editor_toolbar,
-            container(scrollable(editor))
+            scrollable(editor)
                 .width(Length::Fill)
                 .height(Length::Fill),
             stats,
