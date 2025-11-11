@@ -169,9 +169,18 @@ impl OcrMateApp {
         if let Some(doc) = &self.document {
             let page_index = self.current_page;
 
-            if let Ok(image) = doc.render_page(page_index, 2.0) {
+            // Use zoom level for rendering (base scale of 2.0 multiplied by zoom)
+            let render_scale = match self.zoom_mode {
+                ZoomMode::Manual => 2.0 * self.zoom,
+                _ => 2.0, // For fit modes, render at standard quality
+            };
+
+            if let Ok(image) = doc.render_page(page_index, render_scale) {
                 let image_bytes = image.to_rgba8().into_raw();
                 self.current_page_image = Some(create_image_handle(&image_bytes, image.width(), image.height()));
+                tracing::debug!("Rendered page {} at scale {}", page_index, render_scale);
+            } else {
+                tracing::error!("Failed to render page {}", page_index);
             }
         }
     }
@@ -186,9 +195,9 @@ impl OcrMateApp {
 
             match image_result {
                 Ok(image) => {
-                    let image_bytes = image.to_rgba8().into_raw();
-                    let ocr_provider = Arc::clone(&self.ocr_provider);
-                    let ocr_config = self.ocr_config.clone();
+                    let _image_bytes = image.to_rgba8().into_raw();
+                    let _ocr_provider = Arc::clone(&self.ocr_provider);
+                    let _ocr_config = self.ocr_config.clone();
 
                     self.ocr_in_progress = true;
                     self.ocr_status = format!("Processing page {}...", page_index + 1);
@@ -244,7 +253,7 @@ impl OcrMateApp {
 
             Message::PageRendered(result) => {
                 match result {
-                    Ok(image_bytes) => {
+                    Ok(_image_bytes) => {
                         // Image already rendered and stored
                         tracing::info!("Page rendered successfully");
                     }
@@ -351,12 +360,14 @@ impl OcrMateApp {
             Message::ZoomIn => {
                 self.zoom_mode = ZoomMode::Manual;
                 self.zoom = (self.zoom * 1.25).min(5.0);
+                self.render_current_page_sync();
                 Task::none()
             }
 
             Message::ZoomOut => {
                 self.zoom_mode = ZoomMode::Manual;
                 self.zoom = (self.zoom * 0.8).max(0.1);
+                self.render_current_page_sync();
                 Task::none()
             }
 
@@ -368,14 +379,17 @@ impl OcrMateApp {
             Message::ResetZoom => {
                 self.zoom_mode = ZoomMode::Manual;
                 self.zoom = 1.0;
+                self.render_current_page_sync();
                 Task::none()
             }
 
             Message::EditorAction(action) => {
                 self.editor_content.perform(action);
 
-                // Update the OCR results for current page
-                self.ocr_results[self.current_page] = self.editor_content.text();
+                // Update the OCR results for current page if document is loaded
+                if self.current_page < self.ocr_results.len() {
+                    self.ocr_results[self.current_page] = self.editor_content.text();
+                }
                 Task::none()
             }
 
@@ -512,43 +526,77 @@ impl OcrMateApp {
 
     fn view_document_viewer(&self) -> Element<Message> {
         if let Some(_doc) = &self.document {
-            let mut content = column![].spacing(10).padding(10);
+            // Zoom controls at the top
+            let zoom_controls = container(
+                row![
+                    button("−").on_press(Message::ZoomOut),
+                    container(text(format!("{:.0}%", self.zoom * 100.0)))
+                        .width(50)
+                        .center_x(Length::Fill),
+                    button("+").on_press(Message::ZoomIn),
+                    text(" | "),
+                    button(if matches!(self.zoom_mode, ZoomMode::FitHeight) { "● Fit Height" } else { "Fit Height" })
+                        .on_press(Message::SetZoomMode(ZoomMode::FitHeight)),
+                    button(if matches!(self.zoom_mode, ZoomMode::FitWidth) { "● Fit Width" } else { "Fit Width" })
+                        .on_press(Message::SetZoomMode(ZoomMode::FitWidth)),
+                    button("100%").on_press(Message::ResetZoom),
+                ]
+                .spacing(5)
+                .align_y(Alignment::Center)
+            )
+            .padding(5)
+            .width(Length::Fill)
+            .style(container::bordered_box);
 
-            // Document display
-            if let Some(image_handle) = &self.current_page_image {
+            // Document display area
+            let document_content = if let Some(image_handle) = &self.current_page_image {
+                // Determine content fit based on zoom mode
+                let content_fit = match self.zoom_mode {
+                    ZoomMode::FitHeight => iced::ContentFit::ScaleDown,
+                    ZoomMode::FitWidth => iced::ContentFit::ScaleDown,
+                    ZoomMode::Manual => iced::ContentFit::None,
+                };
+
                 let img = iced::widget::image(image_handle.clone())
-                    .width(Length::Fill)
-                    .height(Length::Fill);
-                content = content.push(img);
-            } else {
-                content = content.push(text("Rendering page..."));
-            }
+                    .content_fit(content_fit);
 
-            // Zoom controls
-            let zoom_controls = row![
-                button("−").on_press(Message::ZoomOut),
-                text(format!("{:.0}%", self.zoom * 100.0)),
-                button("+").on_press(Message::ZoomIn),
-                text(" | "),
-                button("Fit Height").on_press(Message::SetZoomMode(ZoomMode::FitHeight)),
-                button("Fit Width").on_press(Message::SetZoomMode(ZoomMode::FitWidth)),
-                button("100%").on_press(Message::ResetZoom),
-            ]
-            .spacing(5);
-
-            content = content.push(zoom_controls);
-
-            container(content)
+                scrollable(
+                    container(img)
+                        .width(Length::Fill)
+                        .center_x(Length::Fill)
+                        .padding(20)
+                )
                 .width(Length::Fill)
                 .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill)
-                .into()
+            } else {
+                scrollable(
+                    container(
+                        column![
+                            text("Rendering page...").size(16),
+                        ]
+                        .spacing(10)
+                        .align_x(Alignment::Center)
+                    )
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .center_x(Length::Fill)
+                    .center_y(Length::Fill)
+                )
+                .width(Length::Fill)
+                .height(Length::Fill)
+            };
+
+            column![
+                zoom_controls,
+                document_content,
+            ]
+            .spacing(0)
+            .into()
         } else {
             container(
                 column![
-                    text("No document loaded").size(20),
-                    text("Click 'Open Document' to get started"),
+                    text("📄 No document loaded").size(24),
+                    text("Click 'Open Document' to get started").size(14),
                 ]
                 .spacing(10)
                 .align_x(Alignment::Center)
